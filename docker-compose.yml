@@ -1,0 +1,44 @@
+version: "3"
+services:
+  postgres:
+    image: library/postgres:15
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./postgres/:/docker-entrypoint-initdb.d/
+    ports:
+      - "5432:5432"
+
+  tickets-service:
+    build: ./tickets-service
+    image: tickets-service:latest
+    container_name: tickets-service
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+
+  films-service:
+    build: ./films-service
+    image: films-service:latest
+    container_name: films-service
+    ports:
+      - "8070:8070"
+    depends_on:
+      - postgres
+
+  cinema-service:
+    build: ./cinema-service
+    image: cinema-service:latest
+    container_name: cinema-service
+    ports:
+      - "8060:8060"
+    depends_on:
+      - postgres
+
+volumes:
+  db-data:

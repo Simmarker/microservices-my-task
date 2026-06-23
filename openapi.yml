@@ -1,0 +1,399 @@
+openapi: 3.0.1
+info:
+  title: Cinema Ticket Service
+  version: "1.0"
+servers:
+  - url: http://localhost:8080
+    description: Ticket Service
+  - url: http://localhost:8070
+    description: Films Service
+  - url: http://localhost:8060
+    description: Ciname Service
+paths:
+  /api/v1/films:
+    get:
+      summary: Просмотр списка всех фильмов, которые идут сегодня в кино
+      tags:
+        - Films Service
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Список всех фильмов
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FilmsWithPaginationResponse"
+
+  /api/v1/cinema:
+    get:
+      summary: Просмотр списка всех кинотеатров
+      tags:
+        - Cinema Service
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Список фильмов в выбранном кинотеатре
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CinemaWithPaginationResponse"
+
+  /api/v1/cinema/{cinemaUid}/films:
+    get:
+      summary: Просмотр афиши выбранного кинотеатра
+      tags:
+        - Cinema Service
+      parameters:
+        - name: cinemaUid
+          schema:
+            type: string
+            format: uuid
+          in: path
+          description: UUID кинотеатра
+          required: true
+      responses:
+        "200":
+          description: Список фильмов в выбранном кинотеатре
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FilmsInCinemaResponse"
+        "404":
+          description: Билет не найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/tickets/cinema/{cinemaUid}/films/{filmUid}:
+    post:
+      summary: Покупка билета
+      tags:
+        - Ticket Service
+      parameters:
+        - name: X-User-Name
+          in: header
+          description: Имя пользователя
+          required: true
+          schema:
+            type: string
+        - name: cinemaUid
+          schema:
+            type: string
+            format: uuid
+          in: path
+          description: UUID кинотеатра
+          required: true
+        - name: filmUid
+          schema:
+            type: string
+            format: uuid
+          in: path
+          description: UUID фильма
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TicketPurchaseRequest"
+      responses:
+        "201":
+          description: Билет успешно куплен
+          headers:
+            Location:
+              description: Ссылка на билет
+              schema:
+                type: string
+
+  "/api/v1/tickets/{ticketUid}":
+    get:
+      summary: Информация по конкретному билету
+      tags:
+        - Ticket Service
+      parameters:
+        - name: ticketUid
+          schema:
+            type: string
+            format: uuid
+          in: path
+          description: UUID билета
+          required: true
+        - name: X-User-Name
+          in: header
+          description: Имя пользователя
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Информация по конкретному билету
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketResponse"
+        "404":
+          description: Билет не найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      summary: Возврат билета
+      tags:
+        - Ticket Service
+      parameters:
+        - name: ticketUid
+          schema:
+            type: string
+            format: uuid
+          in: path
+          description: UUID билета
+          required: true
+        - name: X-User-Name
+          in: header
+          description: Имя пользователя
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Возврат билета успешно выполнен
+        "404":
+          description: Билет не найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: До сеанса осталось меньше одного часа
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    FilmsWithPaginationResponse:
+      type: object
+      example:
+        {
+          "page": 1,
+          "pageSize": 1,
+          "totalElements": 1,
+          "items": [
+            {
+              "filmUid": "049161bb-badd-4fa8-9d90-87c9a82b0668",
+              "name": "Terminator 2 Judgment day",
+              "rating": 8.6,
+              "director": "James Cameron",
+              "producer": "James Cameron",
+              "genre": "Sci-Fi"
+            }
+          ]
+        }
+      properties:
+        page:
+          type: number
+          description: Номер страницы
+        pageSize:
+          type: number
+          description: Количество элементов на странице
+        totalElements:
+          type: number
+          description: Общее количество элементов
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FilmResponse"
+
+    FilmResponse:
+      type: object
+      example:
+        {
+          "filmUid": "049161bb-badd-4fa8-9d90-87c9a82b0668",
+          "name": "Terminator 2 Judgment day",
+          "rating": 8.6,
+          "director": "James Cameron",
+          "producer": "James Cameron",
+          "genre": "Sci-Fi"
+        }
+      properties:
+        filmUid:
+          type: string
+          description: UID фильма
+          format: uuid
+        name:
+          type: string
+          description: Название фильма
+        rating:
+          type: number
+          description: Рейтинг фильма на IMDB
+        director:
+          type: string
+          description: Режиссер
+        producer:
+          type: string
+          description: Продюссер
+        genre:
+          type: string
+          description: Жанр
+
+    CinemaWithPaginationResponse:
+      type: object
+      example:
+        {
+          "page": 1,
+          "pageSize": 1,
+          "totalElements": 1,
+          "items": [
+            {
+              "cinemaUid": "06cc4ba3-ee97-4d29-a814-c40588290d17",
+              "name": "Кинотеатр Москва",
+              "address": "Ереван, улица Хачатура Абовяна, 18"
+            }
+          ]
+        }
+      properties:
+        page:
+          type: number
+          description: Номер страницы
+        pageSize:
+          type: number
+          description: Количество элементов на странице
+        totalElements:
+          type: number
+          description: Общее количество элементов
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CinemaResponse"
+
+    CinemaResponse:
+      type: object
+      example:
+        {
+          "cinemaUid": "06cc4ba3-ee97-4d29-a814-c40588290d17",
+          "name": "Кинотеатр Москва",
+          "address": "Ереван, улица Хачатура Абовяна, 18"
+        }
+      properties:
+        cinemaUid:
+          type: string
+          description: UID кинотеатра
+          format: uuid
+        name:
+          type: string
+          description: Название кинотеатра
+        address:
+          type: string
+          description: Адрес кинотеатра
+
+    FilmsInCinemaResponse:
+      type: object
+      example:
+        {
+          "cinemaUid": "06cc4ba3-ee97-4d29-a814-c40588290d17",
+          "name": "Кинотеатр Москва",
+          "address": "Ереван, улица Хачатура Абовяна, 18",
+          "films": [
+            {
+              "filmUid": "049161bb-badd-4fa8-9d90-87c9a82b0668",
+              "name": "Terminator 2 Judgment day",
+              "rating": 8.6,
+              "director": "James Cameron",
+              "producer": "James Cameron",
+              "genre": "Sci-Fi"
+            }
+          ]
+        }
+      properties:
+        cinemaUid:
+          type: string
+          description: UID кинотеатра
+          format: uuid
+        name:
+          type: string
+          description: Название кинотеатра
+        address:
+          type: string
+          description: Адрес кинотеатра
+        films:
+          type: array
+          items:
+            $ref: "#/components/schemas/FilmResponse"
+
+    TicketPurchaseRequest:
+      type: object
+      example:
+        {
+          "date": "2024-01-01T08:00:00",
+          "row": 10,
+          "seat": 15
+        }
+      properties:
+        date:
+          type: string
+          description: Дата сеанса
+          format: ISO-8601
+        row:
+          type: number
+          description: Ряд
+        seat:
+          type: number
+          description: Место в зале
+
+    TicketResponse:
+      type: object
+      example:
+        {
+          "ticketUid": "3ed4edd9-981e-47b2-9032-ce73eda644aa",
+          "status": "BOOKED",
+          "date": "2024-01-01T08:00:00",
+          "row": 10,
+          "seat": 15
+        }
+      properties:
+        date:
+          type: string
+          description: Дата сеанса
+          format: ISO-8601
+        row:
+          type: number
+          description: Ряд
+        seat:
+          type: number
+          description: Место в зале
+
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Информация об ошибке
